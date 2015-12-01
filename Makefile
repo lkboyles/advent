@@ -125,9 +125,9 @@ $(call input/1,all): $(ALL_INPUT)
 # $(2) = part
 define test_day_part_template
 ifneq ($(wildcard $(call code/2,$(1),$(2))),)
-ALL_TEST += $(call test,$(1),$(2))
-.PHONY: $(call test,$(1),$(2))
-$(call test,$(1),$(2)):
+ALL_TEST += $(call test/2,$(1),$(2))
+.PHONY: $(call test/2,$(1),$(2))
+$(call test/2,$(1),$(2)):
 	$(call test_python,$(call code/2,$(1),$(2)))
 endif
 endef
@@ -138,8 +138,8 @@ $(foreach day,$(DAYS), \
 
 # $(1) = day
 define test_day_all_template
-.PHONY: $(call test,$(1),all)
-$(call test,$(1),all): $(filter $(call test,$(1),)%,$(ALL_TEST))
+.PHONY: $(call test/2,$(1),all)
+$(call test/2,$(1),all): $(filter $(call test/2,$(1),)%,$(ALL_TEST))
 endef
 
 $(foreach day,$(DAYS), \
