@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """Solve Day 1/Part 2 of the AdventOfCode
 
 Santa is trying to deliver presents in a large apartment building, but
@@ -19,33 +18,44 @@ position 1, the second character has position 2, and so on.
 
 For example:
 
-- ")" causes him to enter the basement at character position 1.
-
-- "()())" causes him to enter the basement at character position 5.
+>>> position_of_first_basement(")")
+1
+>>> position_of_first_basement("()())")
+5
 
 What is the position of the character that causes Santa to first enter
 the basement?
 
 """
 
-def current_floor(data):
-    """Yield the current floor based on the data"""
-    floor = 0
-    for char in data:
-        if char == '(':
-            floor += 1
-        if char == ')':
-            floor -= 1
-        yield floor
+import part_1
+
+def position_of_first_basement(instructions):
+    """Find the position where Santa first enters the basement
+
+    >>> position_of_first_basement(")")
+    1
+    >>> position_of_first_basement("()())")
+    5
+    >>> position_of_first_basement("(") is None
+    True
+    >>> position_of_first_basement("") is None
+    True
+
+    """
+    current_floor_iter = part_1.current_floor(instructions)
+    for position, floor in enumerate(current_floor_iter, start=1):
+        if floor == -1:
+            return position
+    else:
+        return None
 
 def main(filename):
     """Print the first position where Santa goes to the basement"""
     with open(filename, 'r') as f:
-        data = f.read()
+        instructions = f.read()
 
-    for position, floor in enumerate(current_floor(data), start=1):
-        if floor == -1:
-            break
+    position = position_of_first_basement(instructions)
 
     print(position)
 
