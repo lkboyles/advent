@@ -11,6 +11,9 @@ ALL_GEN :=
 ALL_INPUT :=
 ALL_TEST :=
 
+.PHONY: all
+all: gen/all
+
 print-%: ; @echo $*=$($*)
 
 .DELETE_ON_ERROR:
