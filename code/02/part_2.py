@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Solve Day 2/Part 2 of the AdventOfCode
 
+========================================
+Day 2: I Was Told There Would Be No Math
+========================================
+
 The elves are also running low on ribbon. Ribbon is all the same
 width, so they only have to worry about the length they need to order,
 which they would again like to be exact.
