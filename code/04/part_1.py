@@ -29,8 +29,6 @@ Find the solution that makes the hash start with 5 zeros.
 
 """
 
-import sys
-
 import multiprocessing
 import hashlib
 
@@ -75,9 +73,13 @@ class AdventCoinFinder(object):
         self.starting_string = starting_string
         self.num_zeros_to_find = num_zeros_to_find
 
+        # Holds all the batches of potential solutions
         self.test_queue = multiprocessing.Queue()
+
+        # Holds all of the results from checking
         self.result_queue = multiprocessing.Queue()
 
+        # Alerts the remaining processes to exit
         self.finished = multiprocessing.Event()
 
     def find_solution(self, starting_solution=0):
@@ -87,28 +89,35 @@ class AdventCoinFinder(object):
         solution is found by one of them.
 
         """
+        # Creates the solution producer
         self.producer = multiprocessing.Process(
             target=self.solution_producer,
             args=(starting_solution, ),
         )
 
+        # Creates a process for each of the solution checkers
         self.processes = [
             multiprocessing.Process(target=self.test_solutions, args=())
             for _ in range(self.num_processes)
         ]
 
+        # Start the threads
         self.producer.start()
         for process in self.processes:
             process.start()
 
+        # Get the solution
         solution = None
         while True:
             solution, result = self.result_queue.get()
             if result:
                 break
 
+        # Alert the processes to exit
         self.finished.set()
 
+        # Wait for the processes to finish
+        producer.join()
         for process in self.processes:
             process.join()
 
@@ -122,27 +131,42 @@ class AdventCoinFinder(object):
 
         """
         while True:
+            # Check if we should exit now
             if self.finished.is_set():
                 break
 
+            # Get the next batch of solutions
             solutions = self.test_queue.get()
+
             for solution in solutions:
+                # Test each solution to see if it is correct
                 result = check_solution(
                     self.starting_string,
                     solution,
                     self.num_zeros_to_find,
                 )
 
+                # To limit the number of items on the result queue,
+                # only push correct solutions.
                 if result:
                     self.result_queue.put((solution, result))
 
     def solution_producer(self, starting_solution):
         """Produces potential solutions to check"""
+        # The current solution to start the next batch on
         solution = starting_solution
+
+        # We want the queue to be a certain size so that no process
+        # will have to wait on the next one
         expected_queue_size = 2 * self.num_processes
+
+        # Each batch of solutions should be this size
         solutions_per_batch = 64
 
+        # Continue until we are signaled to stop
         while not self.finished.is_set():
+            # If the queue is too small, we need to push the next
+            # batch onto it
             while self.test_queue.qsize() < expected_queue_size:
                 solutions = [
                     solution + i
