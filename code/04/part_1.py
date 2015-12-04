@@ -187,14 +187,16 @@ def get_md5_hash(string):
     """
     return hashlib.md5(string.encode("UTF-8")).hexdigest()
 
-def main(filename):
+def main(filename, num_processes):
     """Find the 5-zero solution of the AdventCoin problem"""
     with open(filename, 'r') as f:
         starting_string = f.read().strip()
 
-    num_processors = multiprocessing.cpu_count()
+    if num_processes == 0:
+        num_processes = multiprocessing.cpu_count()
+
     finder = AdventCoinFinder(
-        num_processors,
+        num_processes,
         starting_string,
         5,
     )
@@ -207,6 +209,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('filename')
+    parser.add_argument('--num-processes', type=int, default=0, nargs='?',
+                        help='Number of testing processes (0 means cpu count)')
     args = parser.parse_args()
 
     main(**vars(args))
