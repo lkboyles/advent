@@ -117,7 +117,7 @@ class AdventCoinFinder(object):
         self.finished.set()
 
         # Wait for the processes to finish
-        producer.join()
+        self.producer.join()
         for process in self.processes:
             process.join()
 
