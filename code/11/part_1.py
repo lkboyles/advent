@@ -1,88 +1,110 @@
 #!/usr/bin/env python3
 """Solve Day 11/Part 1 of the AdventOfCode
 
+========================
+Day 11: Corporate Policy
+========================
+
+Santa's previous password expired, and he needs help choosing a new
+one.
+
+To help him remember his new password after the old one expires, Santa
+has devised a method of coming up with a password based on the
+previous one. Corporate policy dictates that passwords must be exactly
+eight lowercase letters (for security reasons), so he finds his new
+password by incrementing his old password string repeatedly until it
+is valid.
+
+Incrementing is just like counting with numbers: xx, xy, xz, ya, yb,
+and so on. Increase the rightmost letter one step; if it was z, it
+wraps around to a, and repeat with the next letter to the left until
+one doesn't wrap around.
+
+Unfortunately for Santa, a new Security-Elf recently started, and he
+has imposed some additional password requirements:
+
+- Passwords must include one increasing straight of at least three
+  letters, like abc, bcd, cde, and so on, up to xyz. They cannot skip
+  letters; abd doesn't count.
+
+- Passwords may not contain the letters i, o, or l, as these letters
+  can be mistaken for other characters and are therefore confusing.
+
+- Passwords must contain at least two different, non-overlapping pairs
+  of letters, like aa, bb, or zz.
+
+For example:
+
+- hijklmmn meets the first requirement (because it contains the
+  straight hij) but fails the second requirement requirement (because
+  it contains i and l).
+
+- abbceffg meets the third requirement (because it repeats bb and ff)
+  but fails the first requirement.
+
+- abbcegjk fails the third requirement, because it only has one double
+  letter (bb).
+
+- The next password after abcdefgh is abcdffaa.
+
+- The next password after ghijklmn is ghjaabcc, because you eventually
+  skip all the passwords that start with ghi..., since i is not
+  allowed.
+
+Given Santa's current password, what should his next password be?
+
 """
 
-import re
+def increment_password(password_values, length=None):
+    """x
 
-class Character(object):
-    def __init__(self, character):
-        self._min_value = ord('a') - ord('a')
-        self._max_value = ord('z') - ord('a')
-        self.value = ord(character) - ord('a')
+    >>> def runner(string, length=None):
+    ...   values = [ord(c) for c in string]
+    ...   increment_password(values, length)
+    ...   return ''.join(chr(value) for value in values)
 
-    def __str__(self):
-        """x
+    >>> runner('abc')
+    'abd'
+    >>> runner('xyz')
+    'xza'
+    >>> runner('xzz')
+    'yaa'
+    >>> runner('xzz', length=len('xz'))
+    'yaz'
 
-        >>> c = Character('a')
-        >>> str(c)
-        'a'
+    """
+    if length is None:
+        length = len(password_values)
 
-        >>> c = Character('z')
-        >>> str(c)
-        'z'
+    for i in range(length):
+        password_values[length-i-1] += 1
+        if password_values[length-i-1] <= ord('z'):
+            break
 
-        """
-        return chr(ord('a') + self.value)
+        password_values[length-i-1] = ord('a')
 
-    def increment(self):
-        """x
+def get_past_confusing_letters(password_values):
+    """x
 
-        >>> c = Character('a')
-        >>> c.increment()
-        False
-        >>> str(c)
-        'b'
+    >>> def runner(string):
+    ...   values = [ord(c) for c in string]
+    ...   get_past_confusing_letters(values)
+    ...   return ''.join(chr(v) for v in values)
 
-        >>> c = Character('z')
-        >>> c.increment()
-        True
-        >>> str(c)
-        'a'
+    >>> runner('hixyz')
+    'hjaaa'
 
-        """
-        self.value += 1
-        if self.value > self._max_value:
-            self.value = 0
-            return True
+    """
+    confusing = [ord('i'), ord('o'), ord('l')]
+    for i in range(len(password_values)):
+        if password_values[i] in confusing:
+            increment_password(password_values, length=i+1)
 
-        return False
+            for j in range(i+1, len(password_values)):
+                password_values[j] = ord('a')
 
-class Password(object):
-    def __init__(self, initial_password):
-        """x
 
-        >>> p = Password("foo")
-        >>> str(p)
-        'foo'
-
-        """
-        self.value = [Character(c) for c in reversed(initial_password)]
-        self.reverse = list(reversed(self.value))
-
-    def __str__(self):
-        return ''.join(str(c) for c in self.reverse)
-
-    def increment(self):
-        """x
-
-        >>> p = Password('xz')
-        >>> p.increment()
-        >>> str(p)
-        'ya'
-
-        >>> p = Password('xzz')
-        >>> p.increment()
-        >>> str(p)
-        'yaa'
-
-        """
-
-        for character in self.value:
-            if not character.increment():
-                break
-
-def find_good_password(password_string):
+def find_good_password(password):
     """x
 
     >>> find_good_password('abcdefgh')
@@ -91,48 +113,49 @@ def find_good_password(password_string):
     'ghjaabcc'
 
     """
-    password = Password(password_string)
-
+    password_values = [ord(c) for c in password]
     while True:
-        password.increment()
+        increment_password(password_values)
 
-        if meets_requirements(password):
+        if meets_requirements(password_values):
             break
 
-    return str(password)
+        if not lacks_confusing_letters(password_values):
+            get_past_confusing_letters(password_values)
 
-def meets_requirements(password):
+    return ''.join(chr(value) for value in password_values)
+
+def meets_requirements(password_values):
     """x
 
-    >>> meets_requirements(Password('hijklmmn'))
+    >>> meets_requirements([ord(c) for c in 'hijklmmn'])
     False
-    >>> meets_requirements(Password('abbceffg'))
+    >>> meets_requirements([ord(c) for c in 'abbceffg'])
     False
-    >>> meets_requirements(Password('abcdffaa'))
+    >>> meets_requirements([ord(c) for c in 'abcdffaa'])
     True
 
     """
-    string = str(password)
 
-    if not has_ascending_sequence(string):
+    if not has_ascending_sequence(password_values):
         return False
 
-    if not lacks_confusing_letters(string):
+    if not lacks_confusing_letters(password_values):
         return False
 
-    if not contains_two_pairs_of_letters(string):
+    if not contains_two_pairs_of_letters(password_values):
         return False
 
     return True
 
-def has_ascending_sequence(password):
-    prev = ord(password[0])
+def has_ascending_sequence(password_values):
     count = 1
-    for character in password[1:]:
-        value = ord(character)
-        if value == prev + 1:
+    for i in range(1, len(password_values)):
+        prev = password_values[i - 1]
+        cur = password_values[i]
+
+        if cur == prev + 1:
             count += 1
-            prev = value
 
             if count == 3:
                 return True
@@ -141,19 +164,33 @@ def has_ascending_sequence(password):
 
     return False
 
-def lacks_confusing_letters(password):
-    confusing = ['i', 'o', 'l']
+def lacks_confusing_letters(password_values):
+    confusing = [ord('i'), ord('o'), ord('l')]
     for c in confusing:
-        if c in password:
+        if c in password_values:
             return False
 
     return True
 
-def contains_two_pairs_of_letters(password):
-    return len(re.findall(r'(.)\1', password)) >= 2
+def contains_two_pairs_of_letters(password_values):
+    num_pairs = 0
+    skip_flag = False
+    for i in range(1, len(password_values)):
+        if skip_flag:
+            skip_flag = False
+            continue
+
+        prev = password_values[i - 1]
+        cur = password_values[i]
+
+        if prev == cur:
+            num_pairs += 1
+            skip_flag = True
+
+    return num_pairs >= 2
 
 def main(filename):
-    """Read string and apply look-and-say algorithm 40 times"""
+    """Read password and determine next good one"""
     with open(filename, 'r') as f:
         string = f.read().strip()
 
