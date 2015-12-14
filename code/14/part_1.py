@@ -14,31 +14,38 @@ class Reindeer(object):
         self.time_at_top_speed = time_at_top_speed
         self.time_resting = time_resting
 
-class ReindeerState(enum.IntEnum):
-    FLYING = 0
-    RESTING = 1
+    def __eq__(self, other):
+        return self.name == other.name
 
-def calculate_distance(reindeer):
-    """x
+    def __hash__(self):
+        return hash(self.name)
 
-    >>> r = Reindeer("test", 1, 5, 2)
-    >>> list(itertools.islice(calculate_distance(r), 10))
-    [0, 1, 2, 3, 4, 5, 5, 5, 6, 7]
+    def distance_at_time(self, time):
+        """x
 
-    """
-    distance = 0
-    (state, last_changed) = (ReindeerState.FLYING, 0)
-    for current_time in itertools.count():
-        yield distance
+        >>> r = Reindeer("comet", 14, 10, 127)
+        >>> r.distance_at_time(0)
+        0
+        >>> r.distance_at_time(1)
+        14
+        >>> r.distance_at_time(2)
+        28
+        >>> r.distance_at_time(10)
+        140
+        >>> r.distance_at_time(1000)
+        1120
 
-        if state == ReindeerState.FLYING:
-            if current_time - last_changed == reindeer.time_at_top_speed - 1:
-                (state, last_changed) = (ReindeerState.RESTING, current_time)
+        """
+        full_cycle_time = self.time_at_top_speed + self.time_resting
+        full_cycles = time // full_cycle_time
+        full_cycle_distance = self.top_speed * self.time_at_top_speed * full_cycles
 
-            distance += reindeer.top_speed
-        elif state == ReindeerState.RESTING:
-            if current_time - last_changed == reindeer.time_resting:
-                (state, last_changed) = (ReindeerState.FLYING, current_time)
+        remaining_time = time % full_cycle_time
+        remaining_distance = self.top_speed * min(remaining_time, self.time_at_top_speed)
+
+        total_distance = full_cycle_distance + remaining_distance
+
+        return total_distance
 
 def read_reindeers(lines):
     matcher = re.compile(r'([A-Za-z]+) .* ([0-9]+) .* ([0-9]+) .* ([0-9]+)')
@@ -57,38 +64,23 @@ def read_reindeers(lines):
 
     return reindeers
 
-def distance_at_time(reindeer, max_time):
-    """x
+def winning_reindeer(reindeers, time):
+    distances = [
+        (reindeer, reindeer.distance_at_time(time))
+        for reindeer in reindeers
+    ]
 
-    >>> r = Reindeer("test", 1, 5, 2)
-    >>> distance_at_time(r, 10)
-    7
-
-    >>> r = Reindeer("comet", 14, 10, 127)
-    >>> distance_at_time(r, 1)
-    14
-    >>> distance_at_time(r, 10)
-    140
-    >>> distance_at_time(r, 11)
-    140
-    >>> distance_at_time(r, 1000)
-    1120
-
-    """
-    for time, distance in enumerate(calculate_distance(reindeer)):
-        if time == max_time:
-            return distance
-
-def distance_of_fastest_reindeer(reindeers, max_time):
-    return max(distance_at_time(reindeer, max_time) for reindeer in reindeers)
+    return max(distances, key=lambda x: x[1])
 
 def main(filename):
-    """Read password and determine next good one"""
+    """Read reindeer and determine distance of the winning reindeer after
+    some time."""
     with open(filename, 'r') as f:
         reindeers = read_reindeers(f)
 
-        distance = distance_of_fastest_reindeer(reindeers, 2503)
-        print(distance)
+    _, distance = winning_reindeer(reindeers, 2503)
+
+    print(distance)
 
 if __name__ == "__main__":
     import argparse
