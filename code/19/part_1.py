@@ -3,6 +3,9 @@
 
 """
 
+import re
+import itertools
+
 class Replacements(object):
     def __init__(self):
         self.replacements = list()
@@ -26,18 +29,14 @@ class Replacements(object):
         >>> r.add('H => HO')
         >>> r.add('H => OH')
         >>> r.add('O => HH')
-        >>> list(r.replacements_for('HOH'))
-
+        >>> list(r.possiblities_for('HOH'))
+        ['HOOH', 'HOHO', 'OHOH', 'HOOH', 'HHHH']
 
         """
         for (before, after) in self.replacements:
             indices = [i.start() for i in re.finditer(before, molecule)]
-            yield molecule.replace(before, after)
-
-def all_combinations(p):
-    n = len(p)
-    for i in range(n):
-        yield from itertools.combinations(p, i)
+            for index in indices:
+                yield molecule[:index] + after + molecule[index+len(before):]
 
 def main(filename):
     with open(filename, 'r') as f:
