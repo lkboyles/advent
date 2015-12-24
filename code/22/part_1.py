@@ -3,239 +3,129 @@
 
 """
 
-import itertools
-import collections
+import enum
 
-################################################################
-# Spells
-
-class Spell(object):
-    def __init__(self, name, cost, num_turns, effect):
-        self.name = name
-        self.cost = cost
-        self.num_turns = num_turns
-        self.effect = effect
-
-    def __repr__(self):
-        return "Spell(name={!r})".format(self.name)
-
-    def cast(self):
-        return CastedSpell(self.name, self.num_turns, self.effect)
-
-class CastedSpell(object):
-    def __init__(self, name, num_turns, effect):
-        self.name = name
-        self.num_turns = num_turns
-        self.effect = effect
-
-    def __repr__(self):
-        return "CastedSpell(name={!r}, num_turns={!r})".format(
-            self.name,
-            self.num_turns,
-        )
+class Boss(object):
+    def __init__(self, hit_points, damage):
+        self.hit_points = hit_points
+        self.damage = damage
 
     def copy(self):
-        return CastedSpell(self.name, self.num_turns, self.effect)
+        return Boss(self.hit_points, self.damage)
 
-    def on_cast(self, game):
-        self.effect.on_cast(game)
-
-    def on_turn_start(self, game):
-        self.effect.on_turn_start(game)
-
-    def on_end(self, game):
-        self.effect.on_end(game)
-
-class Effect(object):
-    def on_cast(self, game):
-        raise NotImplementedError()
-
-    def on_turn_start(self, game):
-        raise NotImplementedError()
-
-    def on_end(self, game):
-        raise NotImplementedError()
-
-
-class MagicMissileEffect(Effect):
-    def on_cast(self, game):
-        game.boss.hit_points -= 4
-
-    def on_turn_start(self, game):
-        pass
-
-    def on_end(self, game):
-        pass
-
-
-class DrainEffect(Effect):
-    def on_cast(self, game):
-        game.boss.hit_points -= 2
-        game.player.hit_points += 2
-
-    def on_turn_start(self, game):
-        pass
-
-    def on_end(self, game):
-        pass
-
-
-class ShieldEffect(Effect):
-    def on_cast(self, game):
-        game.player.armor += 7
-
-    def on_turn_start(self, game):
-        pass
-
-    def on_end(self, game):
-        game.player.armor -= 7
-
-
-class PoisonEffect(Effect):
-    def on_cast(self, game):
-        pass
-
-    def on_turn_start(self, game):
-        game.boss.hit_points -= 3
-
-    def on_end(self, game):
-        pass
-
-
-class RechargeEffect(Effect):
-    def on_cast(self, game):
-        pass
-
-    def on_turn_start(self, game):
-        game.player.mana += 101
-
-    def on_end(self, game):
-        pass
-
-spells = [
-    Spell("Magic Missile", 53, 0, MagicMissileEffect()),
-    Spell("Drain", 73, 0, DrainEffect()),
-    Spell("Shield", 113, 6, ShieldEffect()),
-    Spell("Poison", 173, 6, PoisonEffect()),
-    Spell("Recharge", 229, 5, RechargeEffect()),
-]
-
-################################################################
-# Character and Game
-
-class Character(object):
-    def __init__(self, hit_points, mana=0, damage=0, armor=0):
+class Player(object):
+    def __init__(self, hit_points, mana, armor=0):
         self.hit_points = hit_points
         self.mana = mana
-        self.damage = damage
         self.armor = armor
 
     def copy(self):
-        return Character(self.hit_points, self.mana, self.damage, self.armor)
+        return Player(self.hit_points, self.mana, self.armor)
 
-    def is_living(self):
-        return self.hit_points > 0
-
-class Game(object):
-    def __init__(self, boss, player, is_player_turn, effects, casted_spells):
-        self.boss = boss
-        self.player = player
-        self.is_player_turn = is_player_turn
-        self.effects = effects
-        self.casted_spells = casted_spells
-
-    @classmethod
-    def from_stats(cls, boss_hit_points, boss_damage, player_hit_points,
-                   player_mana):
-        boss = Character(boss_hit_points, damage=boss_damage)
-        player = Character(player_hit_points, mana=player_mana)
-
-        return cls(
-            boss=boss,
-            player=player,
-            is_player_turn=True,
-            effects=[],
-            casted_spells=[],
-        )
+class Effect(object):
+    def __init__(self, effect_type, duration, cost):
+        self.effect_type = effect_type
+        self.duration = duration
+        self.cost = cost
 
     def copy(self):
-        return Game(
-            self.boss.copy(),
-            self.player.copy(),
-            self.is_player_turn,
-            self.effects[:],
-            self.casted_spells[:],
-        )
+        return Effect(self.effect_type, self.duration, self.cost)
 
-    def step(self):
-#        import sys
-#        print("boss: hp = {}".format(self.boss.hit_points), file=sys.stderr)
-#        print("player: hp = {}, mana = {}".format(self.player.hit_points, self.player.mana), file=sys.stderr)
+    def __eq__(self, other):
+        return self.effect_type == other.effect_type
 
-        game = self.copy()
+EffectType = enum.Enum('EffectType', 'MagicMissile Drain Shield Poison Recharge')
 
-        # Do start of turn effects and decrement timer
-        for effect in game.effects:
-            effect.on_turn_start(game)
+effects = [
+    Effect(EffectType.Recharge, 5, 229),
+    Effect(EffectType.Poison, 6, 173),
+    Effect(EffectType.Shield, 6, 113),
+    Effect(EffectType.Drain, 0, 73),
+    Effect(EffectType.MagicMissile, 0, 53),
+]
 
-            effect.num_turns -= 1
-            if effect.num_turns == 0:
-                effect.on_end(game)
+def simulate_all_games(boss, player, players_turn=True, current_effects=None,
+                       used_spells=None):
+    if current_effects is None:
+        current_effects = []
 
-        # Remove finished effects
-        game.effects = [x for x in game.effects if x.num_turns > 0]
+    if used_spells is None:
+        used_spells = []
 
-        # Player lost
-        if game.player.hit_points <= 0:
-            yield (False, self.casted_spells)
-            return
+    for effect in current_effects:
+        effect.duration -= 1
 
-        # Player won
-        elif game.boss.hit_points <= 0:
-            yield (True, self.casted_spells)
-            return
+        if effect.duration < 0:
+            if effect.effect_type == EffectType.Shield:
+                player.armor = 0
 
-        # Do player or boss' turn
-        if self.is_player_turn:
-            game.is_player_turn = False
-            yield from self.step_player(game)
         else:
-            game.is_player_turn = True
-            yield from self.step_boss(game)
+            if effect.effect_type == EffectType.Poison:
+                boss.hit_points -= 3
 
-#        print(file=sys.stderr)
+            elif effect.effect_type == EffectType.Recharge:
+                player.mana += 101
 
-    def step_player(self, game):
-        # Determine which spells can be casted
-        castable_spells = [x for x in spells if x.cost <= game.player.mana]
+    if boss.hit_points <= 0:
+        yield (True, [x.copy() for x in used_spells])
+        return
 
-        if len(castable_spells) == 0:
-            yield (False, self.casted_spells)
+    current_effects = [x for x in current_effects if x.duration > 0]
+
+    if players_turn:
+        if all(x.cost > player.mana for x in effects):
+            yield (False, [x.copy() for x in used_spells])
             return
 
-        # Attempt each one, creating a new game state
-        for spell in castable_spells:
-            new_game = game.copy()
+        for effect in effects:
+            if effect in current_effects:
+                continue
 
-#            import sys
-#            print("Casting {}".format(spell.name), file=sys.stderr)
+            if effect.cost > player.mana:
+                continue
 
-            # Cast spell
-            new_game.player.mana -= spell.cost
-            new_game.casted_spells.append(spell)
+            player_copy = player.copy()
+            boss_copy = boss.copy()
+            current_effects_copy = [x.copy() for x in current_effects]
+            used_spells_copy = [x.copy() for x in used_spells]
 
-            effect = spell.cast()
-            effect.on_cast(new_game)
+            current_effects_copy.append(effect.copy())
+            used_spells_copy.append(effect.copy())
 
-            # Add spell's effects to list
-            if effect.num_turns > 0:
-                new_game.effects.append(effect)
+            player_copy.mana -= effect.cost
 
-            yield from new_game.step()
+            if effect.effect_type == EffectType.MagicMissile:
+                boss_copy.hit_points -= 4
 
-    def step_boss(self, game):
-        game.player.hit_points -= max(1, self.boss.damage - self.player.armor)
-        yield from game.step()
+            elif effect.effect_type == EffectType.Drain:
+                boss_copy.hit_points -= 2
+                player_copy.hit_points += 2
+
+            elif effect.effect_type == EffectType.Shield:
+                player_copy.armor = 7
+
+            yield from simulate_all_games(
+                boss_copy,
+                player_copy,
+                not players_turn,
+                current_effects_copy,
+                used_spells_copy,
+            )
+
+    else:
+        player.hit_points -= max(1, boss.damage - player.armor)
+
+        if player.hit_points <= 0:
+            yield (False, [x.copy() for x in used_spells])
+            return
+
+        yield from simulate_all_games(
+            boss,
+            player,
+            not players_turn,
+            current_effects,
+            used_spells,
+        )
 
 def main(filename):
     with open(filename, 'r') as f:
@@ -245,25 +135,14 @@ def main(filename):
     player_hit_points = 50
     player_mana = 500
 
-    game = Game.from_stats(
-        boss_hit_points,
-        boss_damage,
-        player_hit_points,
-        player_mana,
-    )
+    boss = Boss(boss_hit_points, boss_damage)
+    player = Player(player_hit_points, player_mana)
 
-    lowest_cost_win = float('inf')
+    game_results = simulate_all_games(boss, player)
+    winning_spells = (spells for won, spells in game_results if won)
+    cost_of_winning_spells = (sum(x.cost for x in spells) for spells in winning_spells)
 
-    for (player_won, casted_spells) in game.step():
-#        import sys; print("{!r}".format(casted_spells), file=sys.stderr)
-        if not player_won:
-            continue
-
-        cost = sum(x.cost for x in casted_spells)
-        if cost < lowest_cost_win:
-            lowest_cost_win = cost
-            import sys
-            print("lowest_cost_win = {}".format(lowest_cost_win), file=sys.stderr)
+    lowest_cost_win = min(cost_of_winning_spells)
 
     print(lowest_cost_win)
 
