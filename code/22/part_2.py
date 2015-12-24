@@ -48,9 +48,11 @@ effects = [
     RechargeEffect,
     PoisonEffect,
     ShieldEffect,
-    DrainEffect,
+#    DrainEffect,
     MagicMissileEffect,
 ]
+
+DEBUG = True
 
 def find_solution(boss, player, current_spells=None, players_turn=True):
     if current_spells is None:
@@ -73,6 +75,9 @@ def find_solution(boss, player, current_spells=None, players_turn=True):
 
     if boss.hit_points <= 0:
         return 0
+
+    if players_turn:
+        player.hit_points -= 1
 
     if player.hit_points <= 0:
         return float('inf')
